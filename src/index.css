@@ -1,116 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Outfit:wght@300;400;700;900&family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400;700&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Anton", sans-serif;
+  --font-display: "Outfit", "Space Grotesk", sans-serif;
   --font-mono: "JetBrains Mono", monospace;
 
-  --color-val-red: #D14836;
+  --color-val-blue: #00F5FF;
+  --color-val-orange: #FF4D00;
   --color-val-dark: #000000;
-  --color-val-white: #ffffff;
-  --color-kpr-purple: #6D64A3;
-  --color-kpr-bg: var(--color-val-dark);
-  --color-kpr-ink: var(--color-val-white);
-  --color-kpr-line: rgba(236, 232, 225, 0.1);
-  --color-kpr-muted: rgba(236, 232, 225, 0.4);
+  --color-val-white: #FFFFFF;
 }
 
 @layer base {
-  html {
-    scroll-behavior: smooth;
-  }
-
-  body {
-    @apply bg-val-dark text-val-white font-sans antialiased overflow-x-hidden;
-  }
-
-  ::selection {
-    @apply bg-val-red text-val-white;
-  }
-
-  /* Custom Scrollbar */
-  ::-webkit-scrollbar {
-    width: 4px;
-  }
-  ::-webkit-scrollbar-track {
-    @apply bg-val-dark;
-  }
-  ::-webkit-scrollbar-thumb {
-    @apply bg-val-red;
-  }
+  html { scroll-behavior: initial; } /* GSAP handles smoothness */
+  body { @apply bg-val-dark text-val-white font-sans antialiased overflow-x-hidden cursor-none; }
+  ::selection { @apply bg-val-blue text-val-dark; }
 }
 
 @layer utilities {
-  .text-stroke {
-    -webkit-text-stroke: 1px currentColor;
-    color: transparent;
-  }
-  
-  .vertical-rl {
-    writing-mode: vertical-rl;
-  }
-  
-  .glass {
-    @apply bg-white/5 backdrop-blur-md border border-white/10;
+  .hud-container {
+    @apply relative border border-white/10 backdrop-blur-3xl bg-white/[0.02] rounded-[48px] overflow-hidden;
+    box-shadow: 0 0 80px rgba(0, 0, 0, 0.5);
   }
 
-  .kpr-grid {
-    background-image: 
-      linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-    background-size: 80px 80px;
+  .hud-metadata {
+    @apply font-mono text-[9px] tracking-[0.4em] text-white/40 uppercase;
   }
 
-  .scanline {
-    width: 100%;
-    height: 100px;
-    z-index: 10;
-    background: linear-gradient(0deg, rgba(0, 0, 0, 0) 0%, rgba(209, 72, 54, 0.2) 50%, rgba(0, 0, 0, 0) 100%);
-    opacity: 0.1;
-    position: absolute;
-    bottom: 100%;
-    animation: scanline 8s linear infinite;
+  .lighting-cyan {
+    background: radial-gradient(circle at center, rgba(0, 245, 255, 0.15) 0%, transparent 70%);
   }
 
-  .tech-border {
-    position: relative;
+  .lighting-orange {
+    background: radial-gradient(circle at center, rgba(255, 77, 0, 0.15) 0%, transparent 70%);
   }
 
-  .tech-border::before, .tech-border::after {
-    content: '';
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    border-color: var(--color-val-red);
-    border-style: solid;
+  .diagonal-cut {
+    clip-path: polygon(24px 0, 100% 0, 100% calc(100% - 24px), calc(100% - 24px) 100%, 0 100%, 0 24px);
   }
 
-  .tech-border::before {
-    top: -1px;
-    left: -1px;
-    border-width: 1px 0 0 1px;
+  .animate-float {
+     animation: float 6s ease-in-out infinite;
   }
 
-  .tech-border::after {
-    bottom: -1px;
-    right: -1px;
-    border-width: 0 1px 1px 0;
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-20px); }
   }
 
-  @keyframes scanline {
-    0% { top: -100px; }
-    100% { top: 100%; }
+  .preserve-3d {
+    transform-style: preserve-3d;
   }
 
-  @keyframes marquee {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 
-  .animate-marquee {
-    animation: marquee 40s linear infinite;
+  /* GSAP Panel Interaction Classes */
+  .gsap-panel {
+    @apply flex flex-col items-center justify-center;
   }
 }
-
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
-
