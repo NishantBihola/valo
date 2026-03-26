@@ -8,24 +8,25 @@
 
   --color-val-blue: #00F5FF;
   --color-val-orange: #FF4D00;
+  --color-val-red: #FF4655;
   --color-val-dark: #000000;
   --color-val-white: #FFFFFF;
 }
 
 @layer base {
-  html { scroll-behavior: initial; } /* GSAP handles smoothness */
-  body { @apply bg-val-dark text-val-white font-sans antialiased overflow-x-hidden cursor-none; }
+  html { scroll-behavior: initial; color-scheme: dark; } /* GSAP handles smoothness */
+  body { @apply bg-val-dark text-val-white/90 font-sans antialiased overflow-x-hidden cursor-none leading-relaxed; font-size: 16px; }
   ::selection { @apply bg-val-blue text-val-dark; }
 }
 
 @layer utilities {
   .hud-container {
-    @apply relative border border-white/10 backdrop-blur-3xl bg-white/[0.02] rounded-[48px] overflow-hidden;
-    box-shadow: 0 0 80px rgba(0, 0, 0, 0.5);
+    @apply relative border border-white/12 backdrop-blur-3xl bg-white/[0.03] rounded-[48px] overflow-hidden;
+    box-shadow: 0 0 100px rgba(0, 0, 0, 0.55), 0 0 60px rgba(0, 245, 255, 0.035);
   }
 
   .hud-metadata {
-    @apply font-mono text-[9px] tracking-[0.4em] text-white/40 uppercase;
+    @apply font-mono text-[10px] tracking-[0.45em] text-white/45 uppercase;
   }
 
   .lighting-cyan {
@@ -34,6 +35,10 @@
 
   .lighting-orange {
     background: radial-gradient(circle at center, rgba(255, 77, 0, 0.15) 0%, transparent 70%);
+  }
+
+  .lighting-red {
+    background: radial-gradient(circle at center, rgba(255, 70, 85, 0.16) 0%, transparent 70%);
   }
 
   .diagonal-cut {

@@ -25,8 +25,19 @@ const CustomCursor = () => {
   const mousePos  = useRef({ x: 0, y: 0 });
   const cursorPos = useRef({ x: 0, y: 0 });
   const [hovered, setHovered] = useState(false);
+  const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
+    const mql = window.matchMedia?.('(pointer: fine)') as MediaQueryList | undefined;
+    const update = () => setEnabled(!!mql?.matches);
+    update();
+    if (!mql) return;
+    mql.addEventListener?.('change', update);
+    return () => mql.removeEventListener?.('change', update);
+  }, []);
+
+  useEffect(() => {
+    if (!enabled) return;
     const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
     const onMove = (e: MouseEvent) => {
       mousePos.current = { x: e.clientX, y: e.clientY };
@@ -45,15 +56,17 @@ const CustomCursor = () => {
     raf = requestAnimationFrame(animate);
     window.addEventListener('mousemove', onMove);
     return () => { cancelAnimationFrame(raf); window.removeEventListener('mousemove', onMove); };
-  }, []);
+  }, [enabled]);
+
+  if (!enabled) return null;
 
   return (
     <>
-      <div ref={cursorRef} className="fixed top-0 left-0 pointer-events-none z-[300] hidden md:block will-change-transform">
+      <div ref={cursorRef} className="fixed top-0 left-0 pointer-events-none z-[300] will-change-transform">
         <div className={cn("w-8 h-8 rounded-full border transition-all duration-300",
           hovered ? "scale-[2.5] border-val-blue opacity-100" : "scale-100 border-val-orange/60 opacity-60")} />
       </div>
-      <div ref={dotRef} className="fixed top-0 left-0 w-1.5 h-1.5 bg-white rounded-full pointer-events-none z-[301] hidden md:block will-change-transform" />
+      <div ref={dotRef} className="fixed top-0 left-0 w-1.5 h-1.5 bg-white rounded-full pointer-events-none z-[301] will-change-transform" />
     </>
   );
 };
@@ -294,6 +307,171 @@ const AgentDossier = ({ agent, onClose }: { agent: Agent; onClose: () => void })
           <div className="absolute bottom-6 left-6 flex flex-col gap-1">
             <span className="hud-metadata text-[8px] opacity-60">Holographic Rendering Active</span>
             <span className="hud-metadata text-[7px] text-val-blue animate-pulse">Scanning Neural Network...</span>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+// ─── AGENT NETWORK MODAL (Codex detail + Network-like UI) ────────────────
+const AgentNetworkModal = ({ agent, onClose }: { agent: Agent; onClose: () => void }) => {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const summary =
+    agent.description ||
+    'Intel restricted. This agent profile is being hydrated from the Protocol index.';
+
+  const roleName = agent.role?.displayName ?? 'Unknown Role';
+  const abilities = agent.abilities ?? [];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.35 }}
+      className="fixed inset-0 z-[250] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-4 md:p-10 overflow-y-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <button
+        onClick={onClose}
+        className="fixed top-8 right-8 z-[260] p-3 bg-white/10 border border-white/20 rounded-full hover:bg-val-red hover:border-val-red transition-all group backdrop-blur-xl"
+        aria-label="Close"
+        type="button"
+      >
+        <X size={18} className="text-white group-hover:rotate-90 transition-transform duration-300" />
+      </button>
+
+      <motion.div
+        initial={{ scale: 0.93, y: 20, opacity: 0 }}
+        animate={{ scale: 1, y: 0, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        className="hud-container w-full max-w-6xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Top: LIVE OPS + animated portrait */}
+        <div className="flex flex-col lg:flex-row">
+          <div className="w-full lg:w-1/2 p-6 sm:p-10 border-b lg:border-b-0 lg:border-r border-white/5">
+            <span className="hud-metadata text-val-red block mb-4">
+              // LIVE OPS // {roleName.toUpperCase()}
+            </span>
+            <h2 className="text-4xl sm:text-5xl md:text-6xl font-display font-black leading-none tracking-tighter uppercase mb-5">
+              {agent.displayName}
+            </h2>
+            <p className="text-base sm:text-lg text-white/70 font-sans leading-relaxed max-w-xl">
+              {summary}
+            </p>
+
+            <div className="mt-8 grid grid-cols-2 gap-3 border-t border-white/[0.06] pt-5">
+              {[
+                { label: 'Protocol Vector', val: roleName.toUpperCase(), color: 'text-val-red' },
+                {
+                  label: 'Loadout Signals',
+                  val: `${Math.min(abilities.length, 4)} ACTIVE`,
+                  color: 'text-val-red',
+                },
+                { label: 'Uplink Status', val: 'SYNC', color: 'text-val-red' },
+                { label: 'Threat Window', val: 'LIVE', color: 'text-val-red' },
+              ].map((item) => (
+                <div key={item.label} className="flex flex-col gap-1">
+                  <span className="font-mono text-[10px] tracking-widest text-white/45 uppercase">
+                    {item.label}
+                  </span>
+                  <span className={`font-display font-black text-lg tracking-tighter uppercase ${item.color}`}>
+                    {item.val}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative w-full lg:w-1/2 bg-gradient-to-br from-val-red/10 via-black/0 to-val-red/10 flex items-end justify-center overflow-hidden min-h-[320px] sm:min-h-[420px]">
+            <motion.div
+              className="absolute inset-0"
+              initial={{ opacity: 0.15 }}
+              animate={{ opacity: 0.28 }}
+              transition={{ duration: 3, repeat: Infinity, ease: 'sine.inOut' }}
+              style={{
+                background:
+                  'radial-gradient(circle at 30% 25%, rgba(255,70,85,0.35) 0%, transparent 55%), radial-gradient(circle at 70% 75%, rgba(255,70,85,0.25) 0%, transparent 60%)',
+              }}
+            />
+            <div className="absolute inset-x-[10%] bottom-0 h-[65%] rounded-full bg-val-red/20 blur-[90px] opacity-30" />
+
+            <motion.img
+              initial={{ opacity: 0, scale: 0.92, y: 40 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.05 }}
+              src={agent.fullPortrait}
+              referrerPolicy="no-referrer"
+              alt={agent.displayName}
+              className="relative z-10 w-full max-w-xs sm:max-w-sm h-auto object-contain drop-shadow-[0_0_60px_rgba(255,70,85,0.18)]"
+              whileHover={{ scale: 1.04 }}
+            />
+
+            <div className="absolute top-4 left-4 z-20 flex flex-col gap-1">
+              <span className="hud-metadata text-[8px] text-val-red/80">UNIT // {agent.displayName.toUpperCase()}</span>
+              <span className="hud-metadata text-[7px] text-white/30">{roleName}</span>
+            </div>
+            <div className="absolute bottom-7 left-6 z-20 flex flex-col gap-1">
+              <span className="hud-metadata text-[8px] opacity-70">Neural Sync Active</span>
+              <span className="hud-metadata text-[7px] text-val-red animate-pulse">● LIVE</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom: abilities (Network-like hoverable cards) */}
+        <div className="p-6 sm:p-10 border-t border-white/5">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
+            <span className="hud-metadata text-white/30">// Combat Abilities</span>
+            <span className="hud-metadata text-val-red/60">Hover abilities • Press Esc to close</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {abilities.slice(0, 6).map((ab, i) => (
+              <motion.div
+                key={`${ab.displayName}-${i}`}
+                whileHover={{ y: -4 }}
+                data-magnetic
+                className="group p-4 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-val-red/40 transition-all"
+              >
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <span className="hud-metadata text-val-red/70 text-[8px] whitespace-nowrap">
+                    SIG_{String(i + 1).padStart(2, '0')}
+                  </span>
+                  {ab.displayIcon ? (
+                    <img
+                      src={ab.displayIcon}
+                      className="w-7 h-7 opacity-70 group-hover:opacity-100 transition-opacity"
+                      referrerPolicy="no-referrer"
+                      alt={ab.displayName}
+                    />
+                  ) : (
+                    <span className="w-7 h-7 rounded-lg bg-white/10" />
+                  )}
+                </div>
+                <div className="font-display font-black uppercase tracking-tight text-lg mb-2 group-hover:text-val-red transition-colors">
+                  {ab.displayName}
+                </div>
+                {ab.description ? (
+                  <p className="text-sm text-white/60 leading-relaxed line-clamp-3">
+                    {ab.description}
+                  </p>
+                ) : (
+                  <p className="text-sm text-white/45 leading-relaxed">No description available.</p>
+                )}
+              </motion.div>
+            ))}
           </div>
         </div>
       </motion.div>
@@ -542,10 +720,10 @@ const GridDashboard = ({ agents }: { agents: Agent[] }) => {
   }, []);
 
   const stats = [
-    { icon: <Target   className="text-val-orange" size={18} />, label: 'Target Lock',      val: 'ENGAGED', sub: 'Priority Alpha', desc: 'All combat vectors triangulated. Recon drones active.' },
-    { icon: <Shield   className="text-val-blue"   size={18} />, label: 'Firewall',          val: 'ACTIVE',  sub: 'L-v7 Secure',  desc: 'Zero breach attempts. Full-depth encryption active.' },
-    { icon: <Zap      className="text-val-orange" size={18} />, label: 'Signal Pulse',      val: '0.9ms',   sub: 'Global Sync',  desc: 'Sub-ms relay across all sectors maintained.' },
-    { icon: <Activity className="text-val-blue"   size={18} />, label: 'Neural Throughput', val: '98.4%',   sub: 'Node Active',  desc: 'Intelligence streams at peak capacity.' },
+    { icon: <Zap className="text-val-blue" size={18} />, label: 'Saturate', val: 'HINDER_ECHO', sub: 'Prismatic Slow', desc: 'Light clusters detonate to disrupt enemy tempo and reflex windows.' },
+    { icon: <Target className="text-val-orange" size={18} />, label: 'Light Speed', val: 'PHASE_DRIVE', sub: 'Traversal Burst', desc: 'High-velocity dashes that reshape fight angles before the counterplay lands.' },
+    { icon: <Shield className="text-val-blue" size={18} />, label: 'Refract', val: 'BEACON_LOCK', sub: 'Return Vector', desc: 'Beaconed light supports safe transit and fast re-engagement routes.' },
+    { icon: <Activity className="text-val-orange" size={18} />, label: 'Convergent Paths', val: 'NEXUS_RAY', sub: 'Ultimate Pulse', desc: 'An expanding beam that hinders the area while Waylay escalates forward.' },
   ];
 
   return (
@@ -593,20 +771,20 @@ const GridDashboard = ({ agents }: { agents: Agent[] }) => {
             <div className="hud-container p-7 lg:p-9 flex flex-col gap-6">
               <div>
                 <h2 className="text-[clamp(2.8rem,5vw,4.5rem)] font-display font-black tracking-tighter leading-[0.82] uppercase">
-                  LIVE_<br /><span className="text-val-blue">OPS</span>
+                  WAYLAY_<br /><span className="text-val-blue">LIVE OPS</span>
                 </h2>
-                <p className="text-sm text-white/40 font-sans leading-relaxed mt-4 max-w-xs">
-                  Nexus spans every active zone. Sub-ms relay nodes keep you one step ahead — synchronized, never silent.
+                <p className="text-sm text-white/60 font-sans leading-relaxed mt-4 max-w-xs">
+                  Waylay slips between protocol layers, saturating sightlines and severing escape vectors.
                 </p>
               </div>
               <div className="flex flex-col gap-3 pt-4 border-t border-white/[0.06]">
                 {[
-                  { label: 'Link Density', val: 'Critical Mass', color: 'text-val-blue' },
-                  { label: 'Clearance',   val: 'Alpha-Level',   color: 'text-val-orange' },
-                  { label: 'Uptime',      val: '99.999%',       color: 'text-val-blue' },
+                  { label: 'Tempo Control', val: 'HINDER FIELD', color: 'text-val-blue' },
+                  { label: 'Beacon Integrity', val: 'REFRACT LOCK', color: 'text-val-orange' },
+                  { label: 'Escape Denial', val: 'CONVERGENCE', color: 'text-val-blue' },
                 ].map((item) => (
                   <div key={item.label} className="flex justify-between items-center border-b border-white/[0.05] pb-3 last:border-0 last:pb-0">
-                    <span className="font-mono text-[10px] tracking-widest text-white/30 uppercase">{item.label}</span>
+                    <span className="font-mono text-[10px] tracking-widest text-white/45 uppercase">{item.label}</span>
                     <span className={cn('font-display font-bold text-base tracking-tight', item.color)}>{item.val}</span>
                   </div>
                 ))}
@@ -620,12 +798,12 @@ const GridDashboard = ({ agents }: { agents: Agent[] }) => {
               <div key={i} className="stat-card hud-container p-5 sm:p-6 hover:bg-white/[0.05] transition-all duration-500 group flex flex-col justify-between gap-4 min-h-[155px] sm:min-h-[170px] opacity-0">
                 <div className="flex justify-between items-start">
                   <div className="p-2 bg-white/5 border border-white/10 rounded-lg group-hover:border-white/25 transition-all">{stat.icon}</div>
-                  <span className="font-mono text-[7px] text-white/20 text-right leading-tight ml-2">{stat.sub}</span>
+                  <span className="font-mono text-[7px] text-white/35 text-right leading-tight ml-2">{stat.sub}</span>
                 </div>
                 <div>
-                  <span className="font-mono text-[9px] tracking-widest text-white/25 uppercase block mb-1">{stat.label}</span>
+                  <span className="font-mono text-[9px] tracking-widest text-white/40 uppercase block mb-1">{stat.label}</span>
                   <span className="text-2xl sm:text-3xl font-display font-black uppercase tracking-tighter group-hover:text-white transition-colors">{stat.val}</span>
-                  <p className="text-white/25 text-[11px] font-sans leading-snug mt-1.5 hidden sm:block">{stat.desc}</p>
+                  <p className="text-white/35 text-[11px] font-sans leading-snug mt-1.5 hidden sm:block">{stat.desc}</p>
                 </div>
               </div>
             ))}
@@ -693,10 +871,15 @@ const GridDashboard = ({ agents }: { agents: Agent[] }) => {
 };
 
 // ─── CODEX — All Agent Lore ───────────────────────────────────────────────────
-const Codex = ({ agents }: { agents: Agent[] }) => {
+const Codex = ({
+  agents,
+  onSelectAgent,
+}: {
+  agents: Agent[];
+  onSelectAgent: (agent: Agent) => void;
+}) => {
   const [query, setQuery]     = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('All');
-  const [expanded, setExpanded] = useState<string | null>(null);
 
   const roles = ['All', ...Array.from(new Set(agents.map(a => a.role?.displayName).filter(Boolean)))];
 
@@ -708,30 +891,37 @@ const Codex = ({ agents }: { agents: Agent[] }) => {
   });
 
   return (
-    <section id="codex" className="min-h-screen py-24 px-5 sm:px-10 lg:px-20 bg-val-dark border-t border-white/[0.04]">
+    <section
+      id="codex"
+      className="relative min-h-screen py-24 px-5 sm:px-10 lg:px-20 bg-val-dark border-t border-white/[0.04] overflow-hidden"
+    >
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 right-0 w-[55vw] h-full lighting-red blur-[200px] opacity-10" />
+        <div className="absolute bottom-0 left-1/4 w-[35vw] h-1/2 lighting-red blur-[170px] opacity-[0.07]" />
+      </div>
       <div className="max-w-7xl mx-auto">
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-14">
           <div>
-            <span className="hud-metadata text-val-orange block mb-3">// Classified Agent Database</span>
-            <h2 className="text-5xl sm:text-6xl lg:text-7xl font-display font-black tracking-tighter uppercase leading-none">
+            <span className="hud-metadata text-val-red block mb-3">// Classified Agent Database</span>
+            <h2 className="text-5xl sm:text-6xl lg:text-7xl font-display font-black tracking-tighter uppercase leading-none text-val-red drop-shadow-[0_0_28px_rgba(255,70,85,0.14)]">
               CODEX
             </h2>
-            <p className="text-sm text-white/40 font-sans mt-3 max-w-sm leading-relaxed">
-              Full intelligence profiles on every active Valorant Protocol agent. All lore sourced from official records.
+            <p className="text-sm text-white/65 font-sans mt-3 max-w-sm leading-relaxed">
+              Agent intel profiles with official Valorant lore.
             </p>
           </div>
           {/* Search */}
           <div className="flex flex-col gap-3 w-full sm:w-auto">
             <div className="relative">
-              <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
+              <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/45" />
               <input
                 type="text"
                 placeholder="Search agent or lore..."
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                className="w-full sm:w-64 bg-white/[0.04] border border-white/10 rounded-full pl-10 pr-5 py-3 text-sm text-white placeholder-white/20 font-sans focus:outline-none focus:border-val-blue transition-colors"
+                className="w-full sm:w-64 bg-white/[0.04] border border-white/12 rounded-full pl-10 pr-5 py-3 text-sm text-white placeholder-white/30 font-sans focus:outline-none focus:border-val-red transition-colors"
               />
             </div>
             {/* Role filter */}
@@ -740,8 +930,8 @@ const Codex = ({ agents }: { agents: Agent[] }) => {
                 <button key={r} onClick={() => setRoleFilter(r)}
                   className={cn("hud-metadata px-3 py-1.5 rounded-full border transition-all text-[9px]",
                     roleFilter === r
-                      ? "bg-val-blue border-val-blue text-black"
-                      : "border-white/10 bg-white/[0.03] text-white/40 hover:border-white/30")}>
+                      ? "bg-val-red border-val-red text-black"
+                      : "border-white/10 bg-white/[0.03] text-white/60 hover:border-val-red/30")}>
                   {r}
                 </button>
               ))}
@@ -751,77 +941,56 @@ const Codex = ({ agents }: { agents: Agent[] }) => {
 
         {/* Agent Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filtered.map((agent) => {
-            const isOpen = expanded === agent.uuid;
-            return (
-              <motion.div
-                key={agent.uuid}
-                layout
-                className={cn("hud-container overflow-hidden transition-all", isOpen ? "border-val-blue/40" : "")}
+          {filtered.map((agent) => (
+            <motion.div
+              key={agent.uuid}
+              layout
+              className="hud-container overflow-hidden transition-all rounded-[26px] border border-white/[0.10] bg-white/[0.045] hover:border-val-red/40 hover:bg-white/[0.07] hover:-translate-y-1 hover:shadow-[0_0_90px_rgba(255,70,85,0.12)] group will-change-transform"
+            >
+              <div
+                className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-tr from-val-red/20 via-transparent to-transparent"
+                aria-hidden="true"
+              />
+              <button
+                type="button"
+                data-magnetic
+                className="w-full flex flex-col gap-4 p-5 sm:p-6 relative z-10"
+                onClick={() => onSelectAgent(agent)}
+                aria-label={`Open Network profile for ${agent.displayName}`}
               >
-                {/* Card header — always visible */}
-                <button
-                  className="w-full flex items-center gap-4 p-5 sm:p-6 group"
-                  onClick={() => setExpanded(isOpen ? null : agent.uuid)}
-                >
+                <div className="flex items-center gap-4">
                   {/* Avatar */}
                   <div className="w-14 h-14 rounded-xl flex-shrink-0 overflow-hidden bg-white/5 border border-white/10 relative">
-                    <img src={agent.displayIcon}
+                    <img
+                      src={agent.displayIcon}
                       className="w-full h-full object-cover object-top grayscale group-hover:grayscale-0 transition-all duration-500"
-                      referrerPolicy="no-referrer" alt={agent.displayName} />
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-t from-val-blue/30 to-transparent" />
+                      referrerPolicy="no-referrer"
+                      alt={agent.displayName}
+                    />
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-t from-val-red/30 to-transparent" />
                   </div>
                   <div className="text-left flex-1 min-w-0">
-                    <span className="hud-metadata text-val-blue/50 block mb-0.5">{agent.role?.displayName}</span>
-                    <span className="font-display font-black text-xl uppercase tracking-tight truncate group-hover:text-val-blue transition-colors">{agent.displayName}</span>
+                    <span className="hud-metadata text-val-red/60 block mb-0.5">{agent.role?.displayName}</span>
+                    <span className="font-display font-black text-xl uppercase tracking-tight truncate group-hover:text-val-red transition-colors">
+                      {agent.displayName}
+                    </span>
                   </div>
-                  <ChevronDown size={16} className={cn("text-white/30 flex-shrink-0 transition-transform duration-300", isOpen ? "rotate-180 text-val-blue" : "")} />
-                </button>
+                  <ArrowUpRight size={16} className="text-white/35 group-hover:text-val-red transition-colors flex-shrink-0" />
+                </div>
 
-                {/* Expandable lore */}
-                <AnimatePresence>
-                  {isOpen && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                      className="overflow-hidden"
-                    >
-                      <div className="px-5 sm:px-6 pb-6 flex flex-col gap-5 border-t border-white/[0.06] pt-5">
-                        {/* Portrait + lore */}
-                        <div className="flex gap-4 items-start">
-                          <div className="w-20 h-28 flex-shrink-0 overflow-hidden rounded-xl bg-white/[0.03] border border-white/5 relative">
-                            <img src={agent.fullPortrait}
-                              className="w-[160%] h-[160%] object-contain object-top -mt-2 -ml-4"
-                              referrerPolicy="no-referrer" alt={agent.displayName} />
-                          </div>
-                          <p className="text-sm text-white/50 font-sans leading-relaxed">
-                            {agent.description || "Intelligence file restricted. Further access requires Alpha clearance."}
-                          </p>
-                        </div>
+                <p className="text-sm text-white/65 font-sans leading-relaxed line-clamp-2">
+                  {agent.description || 'Intelligence file restricted. Further access requires Alpha clearance.'}
+                </p>
 
-                        {/* Abilities */}
-                        {agent.abilities && agent.abilities.length > 0 && (
-                          <div>
-                            <span className="hud-metadata text-[9px] opacity-30 block mb-3">Combat Abilities</span>
-                            <div className="grid grid-cols-2 gap-2">
-                              {agent.abilities.slice(0, 4).map((ab: any, i: number) => (
-                                <div key={i} className="flex items-center gap-2 p-2 bg-white/[0.03] rounded-lg">
-                                  {ab.displayIcon && <img src={ab.displayIcon} className="w-5 h-5 opacity-50 flex-shrink-0" referrerPolicy="no-referrer" alt={ab.displayName} />}
-                                  <span className="font-display font-bold text-xs uppercase tracking-tight truncate">{ab.displayName}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            );
-          })}
+                <div className="flex items-center justify-between">
+                  <span className="hud-metadata text-[9px] text-val-red/55 uppercase">Open Profile</span>
+                  <span className="w-9 h-9 rounded-xl border border-white/10 bg-white/[0.03] grid place-items-center group-hover:border-val-red/35 transition-colors">
+                    <ChevronRight size={16} className="text-val-red/80 group-hover:text-val-red transition-colors" />
+                  </span>
+                </div>
+              </button>
+            </motion.div>
+          ))}
         </div>
 
         {filtered.length === 0 && (
@@ -888,6 +1057,7 @@ export default function App() {
   const [loading, setLoading]             = useState(true);
   const [agents, setAgents]               = useState<Agent[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const [selectedCodexAgent, setSelectedCodexAgent] = useState<Agent | null>(null);
   const [activeSection, setActiveSection] = useState("hero");
 
   useEffect(() => {
@@ -915,9 +1085,9 @@ export default function App() {
   }, [loading]);
 
   useEffect(() => {
-    document.body.style.overflow = selectedAgent ? 'hidden' : '';
+    document.body.style.overflow = selectedAgent || selectedCodexAgent ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
-  }, [selectedAgent]);
+  }, [selectedAgent, selectedCodexAgent]);
 
   if (loading) return <Loader />;
 
@@ -930,12 +1100,15 @@ export default function App() {
         <Hero />
         <Roster agents={agents} onSelect={setSelectedAgent} />
         <GridDashboard agents={agents} />
-        <Codex agents={agents} />
+        <Codex agents={agents} onSelectAgent={(a) => { setSelectedAgent(null); setSelectedCodexAgent(a); }} />
       </main>
       <Footer />
       <AnimatePresence>
         {selectedAgent && (
           <AgentDossier agent={selectedAgent} onClose={() => setSelectedAgent(null)} />
+        )}
+        {selectedCodexAgent && (
+          <AgentNetworkModal agent={selectedCodexAgent} onClose={() => setSelectedCodexAgent(null)} />
         )}
       </AnimatePresence>
     </div>
